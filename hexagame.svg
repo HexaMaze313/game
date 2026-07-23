@@ -24,7 +24,7 @@
             overflow: hidden;
           }
           .stage { position: relative; width: 100vw; height: 100vh; }
-          canvas { display: block; width: 100%; height: 100%; cursor: none; }
+          canvas { display: block; width: 100%; height: 100%; cursor: none; touch-action: none; }
 
           .hud, .hud-right, .controls, .health-bar, .hud-bottom {
             position: absolute;
@@ -169,6 +169,37 @@
             pointer-events: none;
             z-index: 40;
           }
+
+          /* Mobile Touch Controls */
+          .touch-controls {
+            position: absolute;
+            bottom: 40px;
+            left: 30px;
+            z-index: 60;
+            user-select: none;
+            -webkit-user-select: none;
+            display: none; /* Only show on touch devices */
+          }
+          @media (pointer: coarse) {
+            .touch-controls { display: block; }
+            .controls { display: none; } /* Hide desktop text on mobile */
+          }
+          .dpad-btn {
+            position: absolute;
+            width: 50px; height: 50px;
+            background: rgba(57,255,20,0.1);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700; color: var(--accent);
+            font-size: 18px;
+            backdrop-filter: blur(4px);
+          }
+          .dpad-up { left: 50px; top: 0; }
+          .dpad-down { left: 50px; top: 100px; }
+          .dpad-left { left: 0; top: 50px; }
+          .dpad-right { left: 100px; top: 50px; }
         /*]]>*/</style>
       </head>
       <body style="margin:0; padding:0; overflow:hidden; width:100vw; height:100vh;">
@@ -196,7 +227,8 @@
             <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>
             MOVE&#160;&#160;
             <span class="key">Q</span> FIRE&#160;&#160;
-            <span class="key">MOUSE</span> AIM
+            <span class="key">MOUSE</span> AIM&#160;&#160;
+            <span class="key">XBOX</span> PAD
           </div>
 
           <div class="health-bar">
@@ -204,12 +236,19 @@
             <div class="bar"><div class="fill" id="health" style="width:100%"></div></div>
           </div>
 
+          <div class="touch-controls">
+            <div class="dpad-btn dpad-up" id="btn-up">W</div>
+            <div class="dpad-btn dpad-down" id="btn-down">S</div>
+            <div class="dpad-btn dpad-left" id="btn-left">A</div>
+            <div class="dpad-btn dpad-right" id="btn-right">D</div>
+          </div>
+
           <div class="overlay active" id="overlay">
             <h1><span class="green">GREEN</span><br/>PROTOCOL</h1>
             <p>100 SURVIVORS · HEX MAZE PROTOCOL · 10 MARKED GREEN<br/>
                COLLECT STARS FOR 10 HEX SHOTS TO DESTROY WALLS<br/>
                PURPLE HEXES GIVE ALLIES 5 SHOTS · CLEAR THE MAZE<br/>
-               WASD MOVE · MOUSE AIM · Q FIRE · SURVIVE</p>
+               XBOX PAD OR WASD MOVE · TOUCH D-PAD ON MOBILE</p>
             <button id="start">INITIATE</button>
           </div>
         </div>
@@ -309,6 +348,45 @@
             levelUp: () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => playTone(f, 0.2, 'sine', 0.1), i * 120)); },
             gameOver: () => { [400, 300, 200, 100].forEach((f, i) => setTimeout(() => playTone(f, 0.3, 'sawtooth', 0.1), i * 150)); }
           };
+
+          // === GAMEPAD (XBOX CONTROLLER) ===
+          function updateGamepad() {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            let pad = null;
+            for (let i = 0; i < pads.length; i++) {
+              if (pads[i]) { pad = pads[i]; break; }
+            }
+            if (!pad) return;
+
+            const dz = 0.2; // Deadzone
+            const lx = pad.axes[0] || 0;
+            const ly = pad.axes[1] || 0;
+            
+            keys['w'] = ly < -dz || (pad.buttons[12] && pad.buttons[12].pressed);
+            keys['s'] = ly > dz || (pad.buttons[13] && pad.buttons[13].pressed);
+            keys['a'] = lx < -dz || (pad.buttons[14] && pad.buttons[14].pressed);
+            keys['d'] = lx > dz || (pad.buttons[15] && pad.buttons[15].pressed);
+
+            const rx = pad.axes[2] || 0;
+            const ry = pad.axes[3] || 0;
+            if (Math.abs(rx) > dz || Math.abs(ry) > dz) {
+              // Map right stick to screen coordinates relative to player
+              const px = myPlayer.x - camera.x;
+              const py = myPlayer.y - camera.y;
+              mouse.x = px + rx * 300; 
+              mouse.y = py + ry * 300;
+            }
+
+            // Triggers or Bumpers to shoot
+            keys['q'] = (pad.buttons[7] && pad.buttons[7].value > 0.1) || 
+                        (pad.buttons[5] && pad.buttons[5].pressed) || 
+                        (pad.buttons[0] && pad.buttons[0].pressed);
+            
+            // Start button to begin/restart
+            if (pad.buttons[9] && pad.buttons[9].pressed) {
+              if (!running) startGame();
+            }
+          }
 
           // === MAZE GENERATION (HEXAGONAL) ===
           const HEX_R = 100;
@@ -523,6 +601,8 @@
 
           function update(dt) {
             if (!running) return;
+
+            updateGamepad(); // Poll Xbox controller
 
             // Bonus Event Manager (50 Stars for 7 seconds)
             if (bonusActiveTimer > 0) {
@@ -1124,6 +1204,7 @@
             }
           }
 
+          // === INPUT BINDING ===
           window.addEventListener('keydown', function(e) {
             keys[e.key.toLowerCase()] = true;
             if (['w','a','s','d','q',' '].indexOf(e.key.toLowerCase()) !== -1) e.preventDefault();
@@ -1141,6 +1222,44 @@
           window.addEventListener('mouseup', function(e) {
             if (e.button === 0) keys['q'] = false;
           });
+
+          // Mobile Touch D-Pad Binding
+          function bindTouch(id, key) {
+            const el = document.getElementById(id);
+            const start = (e) => { e.preventDefault(); keys[key] = true; };
+            const end = (e) => { e.preventDefault(); keys[key] = false; };
+            el.addEventListener('touchstart', start, {passive: false});
+            el.addEventListener('touchend', end, {passive: false});
+            el.addEventListener('touchcancel', end, {passive: false});
+            el.addEventListener('mousedown', start);
+            el.addEventListener('mouseup', end);
+            el.addEventListener('mouseleave', end);
+          }
+          bindTouch('btn-up', 'w');
+          bindTouch('btn-down', 's');
+          bindTouch('btn-left', 'a');
+          bindTouch('btn-right', 'd');
+
+          // Mobile Touch Aiming & Shooting
+          canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+              mouse.x = e.touches[0].clientX;
+              mouse.y = e.touches[0].clientY;
+              keys['q'] = true; // Tap to shoot
+            }
+          }, {passive: false});
+          canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+              mouse.x = e.touches[0].clientX;
+              mouse.y = e.touches[0].clientY;
+            }
+          }, {passive: false});
+          canvas.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            keys['q'] = false;
+          }, {passive: false});
 
           document.getElementById('start').onclick = startGame;
 
