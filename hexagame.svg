@@ -173,33 +173,41 @@
           /* Mobile Touch Controls */
           .touch-controls {
             position: absolute;
-            bottom: 40px;
-            left: 30px;
+            bottom: 50px;
+            left: 40px;
             z-index: 60;
             user-select: none;
             -webkit-user-select: none;
-            display: none; /* Only show on touch devices */
+            display: none; /* Hidden on desktop */
           }
           @media (pointer: coarse) {
             .touch-controls { display: block; }
             .controls { display: none; } /* Hide desktop text on mobile */
           }
+          .dpad-container {
+            position: relative;
+            width: 168px;
+            height: 168px;
+            pointer-events: none; /* Let touches pass through gaps */
+          }
           .dpad-btn {
             position: absolute;
-            width: 50px; height: 50px;
-            background: rgba(57,255,20,0.1);
+            width: 56px; height: 56px;
+            background: rgba(57,255,20,0.12);
             border: 1px solid var(--accent);
-            border-radius: 8px;
+            border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
             font-family: 'JetBrains Mono', monospace;
             font-weight: 700; color: var(--accent);
-            font-size: 18px;
-            backdrop-filter: blur(4px);
+            font-size: 24px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 10px rgba(57,255,20,0.2);
+            pointer-events: auto; /* Capture touches only on buttons */
           }
-          .dpad-up { left: 50px; top: 0; }
-          .dpad-down { left: 50px; top: 100px; }
-          .dpad-left { left: 0; top: 50px; }
-          .dpad-right { left: 100px; top: 50px; }
+          .dpad-up { left: 56px; top: 0; }
+          .dpad-down { left: 56px; top: 112px; }
+          .dpad-left { left: 0; top: 56px; }
+          .dpad-right { left: 112px; top: 56px; }
         /*]]>*/</style>
       </head>
       <body style="margin:0; padding:0; overflow:hidden; width:100vw; height:100vh;">
@@ -237,10 +245,12 @@
           </div>
 
           <div class="touch-controls">
-            <div class="dpad-btn dpad-up" id="btn-up">W</div>
-            <div class="dpad-btn dpad-down" id="btn-down">S</div>
-            <div class="dpad-btn dpad-left" id="btn-left">A</div>
-            <div class="dpad-btn dpad-right" id="btn-right">D</div>
+            <div class="dpad-container">
+              <div class="dpad-btn dpad-up" id="btn-up">▲</div>
+              <div class="dpad-btn dpad-down" id="btn-down">▼</div>
+              <div class="dpad-btn dpad-left" id="btn-left">◀</div>
+              <div class="dpad-btn dpad-right" id="btn-right">▶</div>
+            </div>
           </div>
 
           <div class="overlay active" id="overlay">
@@ -370,19 +380,16 @@
             const rx = pad.axes[2] || 0;
             const ry = pad.axes[3] || 0;
             if (Math.abs(rx) > dz || Math.abs(ry) > dz) {
-              // Map right stick to screen coordinates relative to player
               const px = myPlayer.x - camera.x;
               const py = myPlayer.y - camera.y;
               mouse.x = px + rx * 300; 
               mouse.y = py + ry * 300;
             }
 
-            // Triggers or Bumpers to shoot
             keys['q'] = (pad.buttons[7] && pad.buttons[7].value > 0.1) || 
                         (pad.buttons[5] && pad.buttons[5].pressed) || 
                         (pad.buttons[0] && pad.buttons[0].pressed);
             
-            // Start button to begin/restart
             if (pad.buttons[9] && pad.buttons[9].pressed) {
               if (!running) startGame();
             }
@@ -604,14 +611,14 @@
 
             updateGamepad(); // Poll Xbox controller
 
-            // Bonus Event Manager (50 Stars for 7 seconds)
+            // Bonus Event Manager
             if (bonusActiveTimer > 0) {
               bonusActiveTimer -= dt;
             } else {
               bonusTimer -= dt;
               if (bonusTimer <= 0) {
                 bonusActiveTimer = 7000;
-                bonusTimer = rand(40000, 70000); // Set next bonus interval
+                bonusTimer = rand(40000, 70000);
                 for(let i=0; i<50; i++) {
                   spawnStarPowerup(undefined, undefined, true);
                 }
@@ -658,7 +665,6 @@
                 continue;
               }
 
-              // Player Collision
               if (myPlayer && myPlayer.alive && dist(myPlayer, pu) < PLAYER_R + 14) {
                 if (pu.type === 'star') {
                   myPlayer.powerShots += 10;
@@ -667,7 +673,6 @@
                   sfx.collectStar();
                 } else if (pu.type === 'ally') {
                   myPlayer.powerShots += 5;
-                  // Also grant all green allies 5 shots!
                   players.forEach(pl => {
                     if (pl.isGreen && pl.alive && !pl.isMe) pl.powerShots = 5;
                   });
@@ -684,7 +689,7 @@
               for (let i = powerups.length - 1; i >= 0; i--) {
                 const pu = powerups[i];
                 if (pu.type === 'ally' && dist(p, pu) < PLAYER_R + 14) {
-                  p.powerShots = 5; // 5 shots only
+                  p.powerShots = 5;
                   spawnParticles(pu.x, pu.y, '#a020f0', 20, 5);
                   powerups.splice(i, 1);
                 }
@@ -766,7 +771,6 @@
                 let bSize = BULLET_R;
                 let fireDelay = rand(1400, 4500);
 
-                // Green Allies actively break walls if they have power shots
                 if (p.isGreen && p.powerShots > 0 && walls.length > 0) {
                   let nearestWall = null;
                   let minDist = Infinity;
@@ -777,7 +781,7 @@
                       nearestWall = w;
                     }
                   }
-                  if (nearestWall && minDist < 800) { // Allies shoot walls from further away
+                  if (nearestWall && minDist < 800) {
                     const mx = (nearestWall.x1 + nearestWall.x2) / 2;
                     const my = (nearestWall.y1 + nearestWall.y2) / 2;
                     fa = Math.atan2(my - p.y, mx - p.x);
@@ -843,7 +847,7 @@
                     }
                     if (b.ownerId === myPlayer.id) sfx.explode();
                     else if (p.isMe) sfx.explode();
-                    else if (Math.random() > 0.7) sfx.explode(); // Cacophony of distant explosions
+                    else if (Math.random() > 0.7) sfx.explode();
                   } else {
                     if (p.isMe || b.ownerId === myPlayer.id) sfx.hit();
                   }
@@ -882,7 +886,6 @@
 
             shake *= 0.85;
 
-            // Check Level Complete
             if (walls.length === 0) {
               levelComplete();
             }
@@ -937,7 +940,6 @@
             }
             ctx.globalAlpha = 1;
 
-            // Draw Powerups
             for (const pu of powerups) {
               if (pu.type === 'star') {
                 const isBlue = !pu.isBonus && pu.timer <= 10000;
@@ -986,7 +988,6 @@
             }
             ctx.shadowBlur = 0;
 
-            // Draw Bullets
             for (const b of bullets) {
               ctx.shadowColor = b.color;
               ctx.shadowBlur = 10;
@@ -1175,7 +1176,7 @@
           }
 
           function startGame() {
-            initAudio(); // Initialize audio on first user interaction
+            initAudio();
             generateMaze();
             createPlayers();
             bullets = [];
@@ -1183,7 +1184,7 @@
             powerups = [];
             powerStarTimer = 1000;
             powerAllyTimer = 1000;
-            bonusTimer = 30000; // 30s until first bonus
+            bonusTimer = 30000;
             bonusActiveTimer = 0;
             kills = 0;
             gameOver = false;
@@ -1197,7 +1198,6 @@
             document.getElementById('power').textContent = 0;
             document.getElementById('health').classList.remove('low');
             
-            // Start 2 stars drifting 10 pixels close to the player
             for(let i=0; i<2; i++) {
               const ang = rand(0, Math.PI * 2);
               spawnStarPowerup(myPlayer.x + Math.cos(ang) * 10, myPlayer.y + Math.sin(ang) * 10, false);
@@ -1226,6 +1226,7 @@
           // Mobile Touch D-Pad Binding
           function bindTouch(id, key) {
             const el = document.getElementById(id);
+            if (!el) return;
             const start = (e) => { e.preventDefault(); keys[key] = true; };
             const end = (e) => { e.preventDefault(); keys[key] = false; };
             el.addEventListener('touchstart', start, {passive: false});
@@ -1240,26 +1241,45 @@
           bindTouch('btn-left', 'a');
           bindTouch('btn-right', 'd');
 
-          // Mobile Touch Aiming & Shooting
+          // Mobile Touch Aiming & Shooting (Right side of screen acts as right stick)
+          let rightTouchId = null;
+          
           canvas.addEventListener('touchstart', function(e) {
             e.preventDefault();
-            if (e.touches.length > 0) {
-              mouse.x = e.touches[0].clientX;
-              mouse.y = e.touches[0].clientY;
-              keys['q'] = true; // Tap to shoot
+            for (let i = 0; i < e.changedTouches.length; i++) {
+              const touch = e.changedTouches[i];
+              // Only aim and fire if touching the right half of the screen
+              if (touch.clientX > W / 2 && rightTouchId === null) {
+                rightTouchId = touch.identifier;
+                mouse.x = touch.clientX;
+                mouse.y = touch.clientY;
+                keys['q'] = true; // Start firing
+              }
             }
           }, {passive: false});
+
           canvas.addEventListener('touchmove', function(e) {
             e.preventDefault();
-            if (e.touches.length > 0) {
-              mouse.x = e.touches[0].clientX;
-              mouse.y = e.touches[0].clientY;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+              const touch = e.changedTouches[i];
+              if (touch.identifier === rightTouchId) {
+                mouse.x = touch.clientX;
+                mouse.y = touch.clientY;
+              }
             }
           }, {passive: false});
-          canvas.addEventListener('touchend', function(e) {
+
+          function endTouch(e) {
             e.preventDefault();
-            keys['q'] = false;
-          }, {passive: false});
+            for (let i = 0; i < e.changedTouches.length; i++) {
+              if (e.changedTouches[i].identifier === rightTouchId) {
+                rightTouchId = null;
+                keys['q'] = false; // Stop firing
+              }
+            }
+          }
+          canvas.addEventListener('touchend', endTouch, {passive: false});
+          canvas.addEventListener('touchcancel', endTouch, {passive: false});
 
           document.getElementById('start').onclick = startGame;
 
