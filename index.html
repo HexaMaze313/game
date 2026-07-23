@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GREEN PROTOCOL // HEX MAZE</title>
+    <style>
+        /* Reset and full-screen layout */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0e0a;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Main container for the SVG game */
+        .game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* The SVG itself - ensure it fills the container */
+        .game-container svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #0a0e0a;
+        }
+
+        /* Loading state - shows while SVG loads */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #0a0e0a;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #1f2a1a;
+            border-top: 3px solid #39ff14;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loading .text {
+            font-size: 14px;
+            letter-spacing: 0.3em;
+            color: #6a7a60;
+        }
+
+        .loading .text span {
+            animation: blink 1.2s step-end infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Fallback if SVG fails to load */
+        .fallback {
+            display: none;
+            color: #ff3a3a;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .fallback a {
+            color: #39ff14;
+            text-decoration: underline;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .game-container {
+                width: 100vw;
+                height: 100vh;
+            }
+        }
+
+        /* GitHub ribbon (optional) */
+        .github-ribbon {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .github-ribbon a {
+            pointer-events: auto;
+            display: inline-block;
+            padding: 8px 20px;
+            background: #1f2a1a;
+            color: #6a7a60;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-decoration: none;
+            border-bottom-left-radius: 8px;
+            border: 1px solid #2a3a2a;
+            border-top: none;
+            border-right: none;
+            transition: all 0.3s ease;
+        }
+
+        .github-ribbon a:hover {
+            background: #39ff14;
+            color: #0a0e0a;
+            border-color: #39ff14;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="text">INITIALIZING <span>█</span></div>
+    </div>
+
+    <!-- Game Container -->
+    <div class="game-container" id="gameContainer">
+        <!-- The game SVG will be loaded here -->
+        <object data="hexagame.svg" type="image/svg+xml" id="gameSvg" width="100%" height="100%">
+            <!-- Fallback content if SVG can't load -->
+            <div class="fallback">
+                <h2>⚠️ GAME LOAD FAILED</h2>
+                <p>Unable to load the SVG game file.</p>
+                <p>Make sure <code>hexagame.svg</code> is in the same directory as this page.</p>
+                <p><a href="hexagame.svg">Click here to open the game directly</a></p>
+            </div>
+        </object>
+    </div>
+
+    <!-- Optional GitHub Ribbon -->
+    <div class="github-ribbon">
+        <a href="https://github.com/yourusername/your-repo" target="_blank">▼ VIEW SOURCE</a>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // DOM references
+            const loading = document.getElementById('loading');
+            const gameSvg = document.getElementById('gameSvg');
+
+            // Hide loading screen when SVG is ready
+            function hideLoading() {
+                if (loading) {
+                    loading.classList.add('hidden');
+                    // Remove from DOM after transition
+                    setTimeout(() => {
+                        if (loading.parentNode) {
+                            loading.style.display = 'none';
+                        }
+                    }, 600);
+                }
+            }
+
+            // Check if SVG loaded successfully
+            function checkSvgLoaded() {
+                try {
+                    // Try to access the SVG document
+                    const svgDoc = gameSvg.contentDocument || gameSvg.getSVGDocument();
+                    if (svgDoc) {
+                        // SVG is loaded and accessible
+                        hideLoading();
+                        return true;
+                    }
+                } catch (e) {
+                    // Cross-origin or not ready yet
+                    console.log('SVG not ready yet, retrying...');
+                }
+                return false;
+            }
+
+            // Attempt to detect SVG load
+            function waitForSvg() {
+                // Check immediately
+                if (checkSvgLoaded()) return;
+
+                // Listen for load events
+                gameSvg.addEventListener('load', function() {
+                    // Give it a moment for the content to fully render
+                    setTimeout(hideLoading, 100);
+                });
+
+                gameSvg.addEventListener('error', function() {
+                    console.error('Failed to load SVG game');
+                    // Show fallback
+                    const fallback = document.querySelector('.fallback');
+                    if (fallback) fallback.style.display = 'block';
+                    hideLoading(); // Hide loading even on error
+                });
+
+                // Fallback: try every 500ms for 5 seconds
+                let attempts = 0;
+                const maxAttempts = 10;
+                const interval = setInterval(function() {
+                    attempts++;
+                    if (checkSvgLoaded() || attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        if (attempts >= maxAttempts) {
+                            console.warn('SVG load timeout - forcing hide loading');
+                            hideLoading();
+                        }
+                    }
+                }, 500);
+
+                // Also hide after 3 seconds anyway (safety)
+                setTimeout(function() {
+                    clearInterval(interval);
+                    hideLoading();
+                }, 3000);
+            }
+
+            // Handle page visibility change (resume if game was paused)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    // Game should auto-resume if it uses visibility API
+                }
+            });
+
+            // Ensure keyboard focus for game controls
+            document.addEventListener('click', function() {
+                // Some browsers need focus for keyboard events
+                if (document.activeElement && document.activeElement !== document.body) {
+                    document.body.focus();
+                }
+            });
+
+            // Handle resize for full-screen responsiveness
+            function handleResize() {
+                // The SVG handles its own resizing with width="100%" height="100%"
+                // Just ensure the container is full viewport
+            }
+
+            window.addEventListener('resize', handleResize);
+
+            // Initialize
+            console.log('GREEN PROTOCOL // HEX MAZE');
+            console.log('Loading SVG game...');
+
+            // Start loading detection
+            waitForSvg();
+
+            // Prevent context menu on right-click (optional)
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            // Keyboard shortcut: F to toggle fullscreen
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'f' || e.key === 'F') {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(function(err) {
+                            console.log('Fullscreen request failed:', err);
+                        });
+                    } else {
+                        document.exitFullscreen().catch(function(err) {
+                            console.log('Exit fullscreen failed:', err);
+                        });
+                    }
+                }
+            });
+
+            console.log('Press F for fullscreen mode');
+            console.log('Game loading...');
+
+        })();
+    </script>
+
+</body>
+</html>
