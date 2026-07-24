@@ -259,6 +259,34 @@
           .dpad-down { left: 50px; top: 100px; }
           .dpad-left { left: 0; top: 50px; }
           .dpad-right { left: 100px; top: 50px; }
+          
+          /* Mobile Fire Button */
+          .fire-controls {
+            position: absolute;
+            bottom: 90px;
+            right: 30px;
+            z-index: 60;
+            user-select: none;
+            -webkit-user-select: none;
+            display: none; 
+          }
+          @media (pointer: coarse) {
+            .fire-controls { display: block; }
+          }
+          .fire-btn {
+            width: 90px; height: 90px;
+            background: rgba(255,58,58,0.15);
+            border: 2px solid var(--danger);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700; color: var(--danger);
+            font-size: 18px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(255,58,58,0.3);
+            pointer-events: auto;
+            touch-action: none;
+          }
         /*]]>*/</style>
       </head>
       <body style="margin:0; padding:0; overflow:hidden; width:100vw; height:100vh;">
@@ -334,6 +362,10 @@
               <div class="dpad-btn dpad-right" id="btn-right">▶</div>
             </div>
           </div>
+          
+          <div class="fire-controls">
+            <div class="fire-btn" id="btn-fire">FIRE</div>
+          </div>
 
           <div class="overlay active" id="overlay">
             <h1><span class="green">HEX</span><br/>PROTOCOL</h1>
@@ -390,6 +422,7 @@
           let level = 1;
           let bonusTimer = 30000;
           let bonusActiveTimer = 0;
+          let activeTouches = 0; // Multi-touch counter for Android firing
 
           const rand = (a, b) => Math.random() * (b - a) + a;
           const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -1578,6 +1611,10 @@
 
           window.addEventListener('contextmenu', e => e.preventDefault());
           
+          // --- ANDROID / MOBILE MULTI-TOUCH FIX ---
+          function registerTouchStart() { activeTouches++; keys['mouse'] = true; }
+          function registerTouchEnd() { activeTouches = Math.max(0, activeTouches - 1); if (activeTouches === 0) keys['mouse'] = false; }
+
           const touchControls = {
             up: document.getElementById('btn-up'),
             down: document.getElementById('btn-down'),
@@ -1588,10 +1625,45 @@
             const btn = touchControls[dir];
             if (!btn) continue;
             const key = dir === 'up' ? 'w' : dir === 'down' ? 's' : dir === 'left' ? 'a' : 'd';
-            btn.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; }, {passive: false});
-            btn.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; }, {passive: false});
+            btn.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; registerTouchStart(); }, {passive: false});
+            btn.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; registerTouchEnd(); }, {passive: false});
+            btn.addEventListener('touchcancel', e => { e.preventDefault(); keys[key] = false; registerTouchEnd(); }, {passive: false});
           }
-          
+
+          const fireBtn = document.getElementById('btn-fire');
+          if (fireBtn) {
+              fireBtn.addEventListener('touchstart', e => { e.preventDefault(); registerTouchStart(); }, {passive: false});
+              fireBtn.addEventListener('touchend', e => { e.preventDefault(); registerTouchEnd(); }, {passive: false});
+              fireBtn.addEventListener('touchcancel', e => { e.preventDefault(); registerTouchEnd(); }, {passive: false});
+          }
+
+          // Touching the main screen to aim also initiates shooting
+          canvas.addEventListener('touchstart', e => {
+              e.preventDefault();
+              const rect = canvas.getBoundingClientRect();
+              mouse.x = e.touches[0].clientX - rect.left;
+              mouse.y = e.touches[0].clientY - rect.top;
+              registerTouchStart();
+          }, {passive: false});
+
+          // Dragging to aim keeps shooting
+          canvas.addEventListener('touchmove', e => {
+              e.preventDefault();
+              const rect = canvas.getBoundingClientRect();
+              mouse.x = e.touches[0].clientX - rect.left;
+              mouse.y = e.touches[0].clientY - rect.top;
+          }, {passive: false});
+
+          canvas.addEventListener('touchend', e => {
+              e.preventDefault();
+              registerTouchEnd();
+          }, {passive: false});
+
+          canvas.addEventListener('touchcancel', e => {
+              e.preventDefault();
+              registerTouchEnd();
+          }, {passive: false});
+
           requestAnimationFrame(gameLoop);
           
           /* 
