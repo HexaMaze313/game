@@ -731,7 +731,8 @@
                 p.aimY = mouse.worldY;
               }
 
-              // Shooting mechanic: triggered by Q, Mouse, or Mobile Fire Button
+              // Shooting mechanic: triggered strictly by Q, PC Mouse, or Mobile FIRE button
+              // The D-Pad does NOT set keys['mouse'], ensuring tactical movement without shooting
               p.firing = keys['q'] || keys['mouse'];
             }
 
@@ -1629,6 +1630,7 @@
           window.addEventListener('contextmenu', e => e.preventDefault());
           
           // --- ANDROID / MOBILE TACTICAL D-PAD FIX ---
+          // e.stopPropagation() prevents the canvas from receiving the touch and triggering firing.
           const touchControls = {
             up: document.getElementById('btn-up'),
             down: document.getElementById('btn-down'),
@@ -1641,15 +1643,18 @@
             const key = dir === 'up' ? 'w' : dir === 'down' ? 's' : dir === 'left' ? 'a' : 'd';
             btn.addEventListener('touchstart', e => { 
                 e.preventDefault(); 
+                e.stopPropagation(); 
                 keys[key] = true; 
-                // D-pad strictly handles movement, no firing initialization
+                // D-pad strictly handles movement, NO FIRING INITIALIZED HERE
             }, {passive: false});
             btn.addEventListener('touchend', e => { 
                 e.preventDefault(); 
+                e.stopPropagation(); 
                 keys[key] = false; 
             }, {passive: false});
             btn.addEventListener('touchcancel', e => { 
                 e.preventDefault(); 
+                e.stopPropagation(); 
                 keys[key] = false; 
             }, {passive: false});
           }
@@ -1659,26 +1664,29 @@
           if (fireBtn) {
               fireBtn.addEventListener('touchstart', e => { 
                   e.preventDefault(); 
+                  e.stopPropagation(); 
                   keys['mouse'] = true; // Fire button handles shooting
               }, {passive: false});
               fireBtn.addEventListener('touchend', e => { 
                   e.preventDefault(); 
+                  e.stopPropagation(); 
                   keys['mouse'] = false; 
               }, {passive: false});
               fireBtn.addEventListener('touchcancel', e => { 
                   e.preventDefault(); 
+                  e.stopPropagation(); 
                   keys['mouse'] = false; 
               }, {passive: false});
           }
 
-          // Touching the main screen to aim and shoot independently
+          // Touching the main screen to aim ONLY. No shooting from screen drag.
           canvas.addEventListener('touchstart', e => {
               e.preventDefault();
               const rect = canvas.getBoundingClientRect();
               mouse.x = e.touches[0].clientX - rect.left;
               mouse.y = e.touches[0].clientY - rect.top;
               keys['_touch_aim'] = true; // Mark that we are aiming via touch
-              keys['mouse'] = true; // Screen touch also shoots
+              // NO keys['mouse'] = true. Screen touch does not fire.
           }, {passive: false});
 
           canvas.addEventListener('touchmove', e => {
@@ -1691,13 +1699,11 @@
           canvas.addEventListener('touchend', e => {
               e.preventDefault();
               keys['_touch_aim'] = false;
-              keys['mouse'] = false;
           }, {passive: false});
 
           canvas.addEventListener('touchcancel', e => {
               e.preventDefault();
               keys['_touch_aim'] = false;
-              keys['mouse'] = false;
           }, {passive: false});
 
           requestAnimationFrame(gameLoop);
