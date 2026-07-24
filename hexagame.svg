@@ -373,7 +373,7 @@
                CONNECT UP TO 4 XBOX CONTROLLERS FOR AUTO-JOIN<br/>
                STARTS WITH SHIELD &amp; HEX SHOTS · COLLECT MORE<br/>
                ORANGE CRYSTAL = 30 SEC SHIELD · PURPLE = ALLY HEX<br/>
-               CLEAR THE MAZE TO ADVANCE</p>
+               KILL ALL ENEMIES TO ADVANCE</p>
             <button id="start">INITIATE</button>
           </div>
         </div>
@@ -422,7 +422,6 @@
           let level = 1;
           let bonusTimer = 30000;
           let bonusActiveTimer = 0;
-          let activeTouches = 0; // Multi-touch counter for Android firing
 
           const rand = (a, b) => Math.random() * (b - a) + a;
           const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -573,8 +572,9 @@
             
             let pId = 0;
 
-            // Spawn Hostile Bots (60)
-            for (let i = 0; i < 60; i++) {
+            // Spawn Hostile Bots dynamically based on level (Level 1 = 60, Level 2 = 70, etc.)
+            let enemyCount = 60 + (level - 1) * 10;
+            for (let i = 0; i < enemyCount; i++) {
               players.push(createBot(pId++, 0));
             }
 
@@ -718,8 +718,20 @@
               if (keys['s']) p.moveY = 1;
               if (keys['a']) p.moveX = -1;
               if (keys['d']) p.moveX = 1;
-              p.aimX = mouse.worldX;
-              p.aimY = mouse.worldY;
+              
+              // Aim logic: If moving with D-pad/Keys and not touching screen to aim, aim in movement direction
+              if (keys['w'] || keys['a'] || keys['s'] || keys['d']) {
+                if (!keys['_touch_aim']) {
+                  p.aimX = p.x + p.moveX * 1000;
+                  p.aimY = p.y + p.moveY * 1000;
+                }
+              } else if (!keys['_touch_aim']) {
+                // PC Mouse aim fallback
+                p.aimX = mouse.worldX;
+                p.aimY = mouse.worldY;
+              }
+
+              // Shooting mechanic: triggered by Q, Mouse, or Mobile Fire Button
               p.firing = keys['q'] || keys['mouse'];
             }
 
@@ -1084,6 +1096,8 @@
               }
               
               for (const w of walls) resolveCircleSegment(p, w);
+              
+              // Keep enemies strictly within the arena bounds
               if (p.x < PLAYER_R) { p.x = PLAYER_R; p.moveDir = Math.PI - p.moveDir; }
               if (p.x > ARENA.w - PLAYER_R) { p.x = ARENA.w - PLAYER_R; p.moveDir = Math.PI - p.moveDir; }
               if (p.y < PLAYER_R) { p.y = PLAYER_R; p.moveDir = -p.moveDir; }
@@ -1260,7 +1274,9 @@
               }
             }
 
-            if (walls.length === 0) {
+            // Win condition: ALL ENEMIES KILLED
+            const aliveEnemies = players.filter(p => p.team === 0 && p.alive).length;
+            if (aliveEnemies === 0) {
               levelComplete();
             }
           }
@@ -1549,6 +1565,7 @@
             if (gameOver) return;
             gameOver = true;
             running = false;
+            level = 1; // Reset level to 1 on game over
             sfx.gameOver();
             const overlay = document.getElementById('overlay');
             let totalKills = 0;
@@ -1611,10 +1628,7 @@
 
           window.addEventListener('contextmenu', e => e.preventDefault());
           
-          // --- ANDROID / MOBILE MULTI-TOUCH FIX ---
-          function registerTouchStart() { activeTouches++; keys['mouse'] = true; }
-          function registerTouchEnd() { activeTouches = Math.max(0, activeTouches - 1); if (activeTouches === 0) keys['mouse'] = false; }
-
+          // --- ANDROID / MOBILE TACTICAL D-PAD FIX ---
           const touchControls = {
             up: document.getElementById('btn-up'),
             down: document.getElementById('btn-down'),
@@ -1625,28 +1639,48 @@
             const btn = touchControls[dir];
             if (!btn) continue;
             const key = dir === 'up' ? 'w' : dir === 'down' ? 's' : dir === 'left' ? 'a' : 'd';
-            btn.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; registerTouchStart(); }, {passive: false});
-            btn.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; registerTouchEnd(); }, {passive: false});
-            btn.addEventListener('touchcancel', e => { e.preventDefault(); keys[key] = false; registerTouchEnd(); }, {passive: false});
+            btn.addEventListener('touchstart', e => { 
+                e.preventDefault(); 
+                keys[key] = true; 
+                // D-pad strictly handles movement, no firing initialization
+            }, {passive: false});
+            btn.addEventListener('touchend', e => { 
+                e.preventDefault(); 
+                keys[key] = false; 
+            }, {passive: false});
+            btn.addEventListener('touchcancel', e => { 
+                e.preventDefault(); 
+                keys[key] = false; 
+            }, {passive: false});
           }
 
+          // Dedicated FIRE Button
           const fireBtn = document.getElementById('btn-fire');
           if (fireBtn) {
-              fireBtn.addEventListener('touchstart', e => { e.preventDefault(); registerTouchStart(); }, {passive: false});
-              fireBtn.addEventListener('touchend', e => { e.preventDefault(); registerTouchEnd(); }, {passive: false});
-              fireBtn.addEventListener('touchcancel', e => { e.preventDefault(); registerTouchEnd(); }, {passive: false});
+              fireBtn.addEventListener('touchstart', e => { 
+                  e.preventDefault(); 
+                  keys['mouse'] = true; // Fire button handles shooting
+              }, {passive: false});
+              fireBtn.addEventListener('touchend', e => { 
+                  e.preventDefault(); 
+                  keys['mouse'] = false; 
+              }, {passive: false});
+              fireBtn.addEventListener('touchcancel', e => { 
+                  e.preventDefault(); 
+                  keys['mouse'] = false; 
+              }, {passive: false});
           }
 
-          // Touching the main screen to aim also initiates shooting
+          // Touching the main screen to aim and shoot independently
           canvas.addEventListener('touchstart', e => {
               e.preventDefault();
               const rect = canvas.getBoundingClientRect();
               mouse.x = e.touches[0].clientX - rect.left;
               mouse.y = e.touches[0].clientY - rect.top;
-              registerTouchStart();
+              keys['_touch_aim'] = true; // Mark that we are aiming via touch
+              keys['mouse'] = true; // Screen touch also shoots
           }, {passive: false});
 
-          // Dragging to aim keeps shooting
           canvas.addEventListener('touchmove', e => {
               e.preventDefault();
               const rect = canvas.getBoundingClientRect();
@@ -1656,12 +1690,14 @@
 
           canvas.addEventListener('touchend', e => {
               e.preventDefault();
-              registerTouchEnd();
+              keys['_touch_aim'] = false;
+              keys['mouse'] = false;
           }, {passive: false});
 
           canvas.addEventListener('touchcancel', e => {
               e.preventDefault();
-              registerTouchEnd();
+              keys['_touch_aim'] = false;
+              keys['mouse'] = false;
           }, {passive: false});
 
           requestAnimationFrame(gameLoop);
@@ -1723,9 +1759,9 @@
             },
             "maps": [
               {"name": "Sector 1", "size": [2400, 2000], "walls": 400, "enemies": 60},
-              {"name": "Sector 2", "size": [2600, 2200], "walls": 450, "enemies": 65},
-              {"name": "Sector 3", "size": [2800, 2400], "walls": 500, "enemies": 70},
-              {"name": "Sector 4", "size": [3000, 2600], "walls": 550, "enemies": 75}
+              {"name": "Sector 2", "size": [2600, 2200], "walls": 450, "enemies": 70},
+              {"name": "Sector 3", "size": [2800, 2400], "walls": 500, "enemies": 80},
+              {"name": "Sector 4", "size": [3000, 2600], "walls": 550, "enemies": 90}
             ],
             "events": [
               "BONUS_STAR_RAIN",
