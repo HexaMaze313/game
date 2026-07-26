@@ -50,7 +50,6 @@
             line-height: 1;
           }
 
-          /* 4-Player Bottom HUD */
           .player-huds {
             position: absolute;
             bottom: 20px;
@@ -222,7 +221,6 @@
             z-index: 40;
           }
 
-          /* Mobile Touch Controls */
           .touch-controls {
             position: absolute;
             bottom: 90px;
@@ -230,7 +228,7 @@
             z-index: 60;
             user-select: none;
             -webkit-user-select: none;
-            display: none; 
+            display: none;
           }
           @media (pointer: coarse) {
             .touch-controls { display: block; }
@@ -259,8 +257,7 @@
           .dpad-down { left: 50px; top: 100px; }
           .dpad-left { left: 0; top: 50px; }
           .dpad-right { left: 100px; top: 50px; }
-          
-          /* Mobile Fire Button */
+
           .fire-controls {
             position: absolute;
             bottom: 90px;
@@ -268,7 +265,7 @@
             z-index: 60;
             user-select: none;
             -webkit-user-select: none;
-            display: none; 
+            display: none;
           }
           @media (pointer: coarse) {
             .fire-controls { display: block; }
@@ -362,7 +359,7 @@
               <div class="dpad-btn dpad-right" id="btn-right">▶</div>
             </div>
           </div>
-          
+
           <div class="fire-controls">
             <div class="fire-btn" id="btn-fire">FIRE</div>
           </div>
@@ -379,7 +376,6 @@
         </div>
 
         <script>//<![CDATA[
-          // === SETUP ===
           const canvas = document.getElementById('game');
           const ctx = canvas.getContext('2d');
           let W, H;
@@ -398,18 +394,16 @@
           const FIRE_COOLDOWN = 200;
           const BOT_SPEED = 1.5;
 
-          // 0 = Hostile, 1 = Green, 2 = Blue, 3 = Purple, 4 = Orange
           const TEAM_COLORS = ['#1a1a1a', '#39ff14', '#00bfff', '#a020f0', '#ff8c00'];
           const TEAM_ALLY_COLORS = ['#2a2a2a', '#4fcc2c', '#00aaaa', '#7000a0', '#cc5500'];
 
-          // === MAZE & STATE ===
           let walls = [];
           let cellCenters = [];
           let players = [];
           let bullets = [];
           let particles = [];
           let powerups = [];
-          let humanPlayers = [null, null, null, null]; // P1, P2, P3, P4
+          let humanPlayers = [null, null, null, null];
           let keys = {};
           let mouse = { x: 0, y: 0, worldX: 0, worldY: 0 };
           let camera = { x: ARENA.w/2, y: ARENA.h/2, scale: 1.0 };
@@ -426,7 +420,6 @@
           const rand = (a, b) => Math.random() * (b - a) + a;
           const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-          // === AUDIO ENGINE ===
           let audioCtx = null;
           function initAudio() {
             if (!audioCtx) {
@@ -479,7 +472,6 @@
             gameOver: () => { [400, 300, 200, 100].forEach((f, i) => setTimeout(() => playTone(f, 0.3, 'sawtooth', 0.1), i * 150)); }
           };
 
-          // === MAZE GENERATION ===
           const HEX_R = 100;
           const HEX_W = Math.sqrt(3) * HEX_R;
           const HEX_H = 2 * HEX_R;
@@ -538,15 +530,13 @@
             for (const c of grid) {
               cellCenters.push({ x: c.x + ARENA.w / 2, y: c.y + ARENA.h / 2 });
             }
-            
-            // Optimization: Add extra connectivity to prevent bots getting stuck in dead ends
+
             for (let i = 0; i < grid.length * 0.2; i++) {
               const c = grid[Math.floor(Math.random() * grid.length)];
               const wi = Math.floor(Math.random() * 6);
               c.walls[wi] = false;
             }
-            
-            // Rebuild walls array with extra openings
+
             for (const c of grid) {
               for (let i = 0; i < 6; i++) {
                 if (c.walls[i]) {
@@ -569,20 +559,16 @@
               const hud = document.getElementById('hud-'+i);
               if(hud) hud.classList.remove('active');
             }
-            
-            let pId = 0;
 
-            // Spawn Hostile Bots dynamically based on level (Level 1 = 60, Level 2 = 70, etc.)
+            let pId = 0;
             let enemyCount = 60 + (level - 1) * 10;
             for (let i = 0; i < enemyCount; i++) {
               players.push(createBot(pId++, 0));
             }
 
-            // Spawn P1 (Green Team - 1 Human + 9 AI)
-            spawnHumanTeam(1, 0); 
+            spawnHumanTeam(1, 0);
             for (let i = 0; i < 9; i++) players.push(createBot(pId++, 1));
 
-            // Check for already connected gamepads for P2, P3, P4
             const pads = navigator.getGamepads ? navigator.getGamepads() : [];
             for(let i=1; i<4; i++) {
               if (pads[i]) {
@@ -650,11 +636,11 @@
               fireTimer: 0,
               moveTimer: 0, moveDir: 0, moving: false,
               hitFlash: 0,
-              powerShots: 20, // Start with 20 yellow crystal shots
+              powerShots: 20,
               kills: 0,
               target: null,
-              shieldTimer: 30000, // Start with 30 sec shield
-              targetingVisible: true, // Visible by default
+              shieldTimer: 30000,
+              targetingVisible: true,
               lastWallHit: 0,
               stuckTimer: 0,
               lastX: px,
@@ -662,22 +648,17 @@
             };
             players.push(p);
             humanPlayers[humanId] = p;
-            
-            // Activate HUD
             const hud = document.getElementById('hud-'+humanId);
             if(hud) hud.classList.add('active');
           }
 
-          // === GAMEPAD EVENTS ===
           window.addEventListener('gamepadconnected', (e) => {
             const index = e.gamepad.index;
             if (index < 4 && !humanPlayers[index]) {
-              if (index === 0 && humanPlayers[0]) return; 
-              
+              if (index === 0 && humanPlayers[0]) return;
               const team = index + 1;
               spawnHumanTeam(team, index);
               for (let j = 0; j < 9; j++) players.push(createBot(players.length, team));
-              
               if (e.gamepad.vibrationActuator) {
                 e.gamepad.vibrationActuator.playEffect("dual-rumble", {
                     duration: 500,
@@ -695,15 +676,12 @@
               humanPlayers[index].moveTimer = 0;
               humanPlayers[index].fireTimer = rand(800, 3500);
               humanPlayers[index] = null;
-              
               const hud = document.getElementById('hud-'+index);
               if(hud) hud.classList.remove('active');
             }
           });
 
-          // === INPUT PROCESSING ===
           function processInput(dt) {
-            // PC Toggle Targeting (F key)
             if (keys['f']) {
               if (!keys['_f_pressed']) {
                 if (humanPlayers[0]) humanPlayers[0].targetingVisible = !humanPlayers[0].targetingVisible;
@@ -718,21 +696,17 @@
               if (keys['s']) p.moveY = 1;
               if (keys['a']) p.moveX = -1;
               if (keys['d']) p.moveX = 1;
-              
-              // Aim logic: If moving with D-pad/Keys and not touching screen to aim, aim in movement direction
+
               if (keys['w'] || keys['a'] || keys['s'] || keys['d']) {
                 if (!keys['_touch_aim']) {
                   p.aimX = p.x + p.moveX * 1000;
                   p.aimY = p.y + p.moveY * 1000;
                 }
               } else if (!keys['_touch_aim']) {
-                // PC Mouse aim fallback
                 p.aimX = mouse.worldX;
                 p.aimY = mouse.worldY;
               }
 
-              // Shooting mechanic: triggered strictly by Q, PC Mouse, or Mobile FIRE button
-              // The D-Pad does NOT set keys['mouse'], ensuring tactical movement without shooting
               p.firing = keys['q'] || keys['mouse'];
             }
 
@@ -740,10 +714,8 @@
             for (let i = 0; i < 4; i++) {
               const pad = pads[i];
               if (!pad || !humanPlayers[i] || !humanPlayers[i].alive) continue;
-              
               const p = humanPlayers[i];
 
-              // Xbox Toggle Targeting (Y button - index 3)
               if (pad.buttons[3] && pad.buttons[3].pressed) {
                 if (!keys['_y_pressed_'+i]) {
                   p.targetingVisible = !p.targetingVisible;
@@ -754,10 +726,10 @@
               const dz = 0.2;
               const lx = pad.axes[0] || 0;
               const ly = pad.axes[1] || 0;
-              
+
               p.moveX = lx;
               p.moveY = ly;
-              
+
               if (pad.buttons[12] && pad.buttons[12].pressed) p.moveY = -1;
               if (pad.buttons[13] && pad.buttons[13].pressed) p.moveY = 1;
               if (pad.buttons[14] && pad.buttons[14].pressed) p.moveX = -1;
@@ -773,28 +745,28 @@
                 p.aimY = p.y + Math.sin(p.angle) * 1000;
               }
 
-              p.firing = (pad.buttons[7] && pad.buttons[7].value > 0.1) || 
-                          (pad.buttons[5] && pad.buttons[5].pressed) || 
+              p.firing = (pad.buttons[7] && pad.buttons[7].value > 0.1) ||
+                          (pad.buttons[5] && pad.buttons[5].pressed) ||
                           (pad.buttons[0] && pad.buttons[0].pressed);
             }
 
             for (const p of humanPlayers) {
               if (!p || !p.alive) continue;
-              
+
               if (p.shieldTimer > 0) p.shieldTimer -= dt;
 
               if (p.moveX !== 0 || p.moveY !== 0) {
                 const len = Math.hypot(p.moveX, p.moveY);
-                if (len > 1) { 
+                if (len > 1) {
                   p.moveX /= len;
                   p.moveY /= len;
                 }
                 p.x += p.moveX * PLAYER_SPEED;
                 p.y += p.moveY * PLAYER_SPEED;
               }
-              
+
               for (const w of walls) resolveCircleSegment(p, w);
-              
+
               p.x = Math.max(PLAYER_R, Math.min(ARENA.w - PLAYER_R, p.x));
               p.y = Math.max(PLAYER_R, Math.min(ARENA.h - PLAYER_R, p.y));
 
@@ -835,7 +807,6 @@
             return dist(p, { x: w.x1 + t * (w.x2 - w.x1), y: w.y1 + t * (w.y2 - w.y1) });
           }
 
-          // Line of Sight calculation to check if walls block targeting
           function lineIntersectsWall(x1, y1, x2, y2) {
             for (const w of walls) {
               const x3 = w.x1, y3 = w.y1, x4 = w.x2, y4 = w.y2;
@@ -936,7 +907,6 @@
             });
           }
 
-          // NEW: Shield Powerup Spawn (can spawn at center like purple or randomly)
           function spawnShieldPowerup(useCenter) {
             if (useCenter && cellCenters.length > 0) {
               const c = cellCenters[Math.floor(Math.random() * cellCenters.length)];
@@ -958,6 +928,49 @@
             }
           }
 
+          // === OPTIMIZED SPACE INVADER — Pre-computed Path2D, doubled size ===
+          // Same classic crab sprite at 2x scale. White body + drop shadow only.
+          // Sky blue (#87CEEB) when health ≤ 25 (one more bullet kills it).
+          // Path2D built once at init: 2 fill() calls per enemy per frame.
+          const INVADER_SPRITE = [
+            [0,0,1,0,0,0,0,0,1,0,0],
+            [0,0,0,1,0,0,0,1,0,0,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,1,1,1,1,1,1,1,0,1],
+            [1,0,1,0,0,0,0,0,1,0,1],
+            [0,0,0,1,1,0,1,1,0,0,0]
+          ];
+
+          // Doubled visual size: PLAYER_R * 2 * 1.9 / 11
+          const _invPx = (PLAYER_R * 2 * 1.9) / 11;
+          const _invOx = -(11 * _invPx) / 2;
+          const _invOy = -(8 * _invPx) / 2;
+
+          const _invBody = new Path2D();
+          const _invShadow = new Path2D();
+          for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 11; c++) {
+              if (INVADER_SPRITE[r][c]) {
+                _invBody.rect(_invOx + c * _invPx, _invOy + r * _invPx, _invPx, _invPx);
+                _invShadow.rect(_invOx + c * _invPx + 3, _invOy + r * _invPx + 3, _invPx, _invPx);
+              }
+            }
+          }
+
+          function drawSpaceInvader(ctx, size, hitFlash, critical) {
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(0,0,0,0.65)';
+            ctx.fill(_invShadow);
+            ctx.shadowColor = '#ffdd00';
+            ctx.shadowBlur = 15;
+            if (hitFlash) ctx.fillStyle = '#ff3a3a';
+            else if (critical) ctx.fillStyle = '#87CEEB';
+            else ctx.fillStyle = '#ffffff';
+            ctx.fill(_invBody);
+          }
+
           function update(dt) {
             if (!running) return;
 
@@ -972,7 +985,7 @@
                 bonusTimer = rand(40000, 70000);
                 for(let i=0; i<50; i++) {
                   spawnStarPowerup(undefined, undefined, true);
-                  if (i % 5 === 0) spawnShieldPowerup(false); // Add orange crystals to bonus drift
+                  if (i % 5 === 0) spawnShieldPowerup(false);
                 }
                 sfx.bonus();
               }
@@ -996,12 +1009,11 @@
               else powerAllyTimer -= dt;
             }
 
-            // NEW: Spawn at least 20 orange shield crystals
             let shieldCount = powerups.filter(p => p.type === 'shield').length;
             if (shieldCount < 20) {
-              if (powerShieldTimer <= 0) { 
-                spawnShieldPowerup(Math.random() > 0.5); // Mix of center and random
-                powerShieldTimer = 1000; 
+              if (powerShieldTimer <= 0) {
+                spawnShieldPowerup(Math.random() > 0.5);
+                powerShieldTimer = 1000;
               } else powerShieldTimer -= dt;
             }
 
@@ -1009,7 +1021,7 @@
               const pu = powerups[i];
               pu.timer -= dt;
               pu.rot += 0.03;
-              
+
               if (pu.type === 'star') {
                 pu.x += pu.vx; pu.y += pu.vy;
                 if (pu.x < 30) { pu.x = 30; pu.vx *= -1; }
@@ -1031,7 +1043,6 @@
                     powerups.splice(i, 1);
                     if (p.humanId !== null) sfx.collectStar();
                   } else if (pu.type === 'ally') {
-                    // Purple Crystal gives allies 5 hex shots (which enables their targeting system)
                     p.powerShots += 5;
                     players.forEach(pl => {
                       if (pl.team === p.team) pl.powerShots = 5;
@@ -1040,7 +1051,6 @@
                     powerups.splice(i, 1);
                     if (p.humanId !== null) sfx.collectAlly();
                   } else if (pu.type === 'shield') {
-                    // Orange Crystal gives 30 sec shield
                     p.shieldTimer = 30000;
                     spawnParticles(pu.x, pu.y, '#ff8c00', 30, 6);
                     powerups.splice(i, 1);
@@ -1051,15 +1061,13 @@
               }
             }
 
-            // AI Logic
             for (const p of players) {
               if (!p.alive || p.humanId !== null) continue;
               p.hitFlash = Math.max(0, p.hitFlash - dt);
               if (p.shieldTimer > 0) p.shieldTimer -= dt;
 
-              // Targeting System: find nearest enemy WITH LINE OF SIGHT
               let target = null;
-              let minTargetDist = 600; 
+              let minTargetDist = 600;
               for (const enemy of players) {
                 if (enemy.alive && enemy.team !== p.team) {
                   const d = dist(p, enemy);
@@ -1078,16 +1086,15 @@
                 p.moveTimer = rand(700, 2400);
               }
 
-              // Unsticking mechanism
               if (p.moving) {
                 p.x += Math.cos(p.moveDir) * BOT_SPEED;
                 p.y += Math.sin(p.moveDir) * BOT_SPEED;
                 p.angle = p.moveDir;
-                
+
                 p.stuckTimer -= dt;
                 if (p.stuckTimer <= 0) {
                   if (Math.hypot(p.x - p.lastX, p.y - p.lastY) < 1) {
-                    p.moveDir += Math.PI / 2 + rand(-0.5, 0.5); 
+                    p.moveDir += Math.PI / 2 + rand(-0.5, 0.5);
                     p.moveTimer = 500;
                   }
                   p.lastX = p.x;
@@ -1095,10 +1102,9 @@
                   p.stuckTimer = 500;
                 }
               }
-              
+
               for (const w of walls) resolveCircleSegment(p, w);
-              
-              // Keep enemies strictly within the arena bounds
+
               if (p.x < PLAYER_R) { p.x = PLAYER_R; p.moveDir = Math.PI - p.moveDir; }
               if (p.x > ARENA.w - PLAYER_R) { p.x = ARENA.w - PLAYER_R; p.moveDir = Math.PI - p.moveDir; }
               if (p.y < PLAYER_R) { p.y = PLAYER_R; p.moveDir = -p.moveDir; }
@@ -1113,7 +1119,6 @@
                 let fireDelay = rand(1400, 4500);
 
                 if (p.team > 0 && p.powerShots > 0) {
-                  // Alllies use Hex Shots to break walls if blocked, OR target enemies if they have LOS
                   let nearestWall = null;
                   let minDist = Infinity;
                   for (const w of walls) {
@@ -1141,7 +1146,6 @@
                     fireDelay = rand(500, 1000);
                   }
                 } else if (target) {
-                  // Enemies and allies without power shots fire normally if they have LOS
                   fa = Math.atan2(target.y - p.y, target.x - p.x) + rand(-0.1, 0.1);
                   fireDelay = rand(800, 1800);
                 }
@@ -1152,7 +1156,6 @@
               }
             }
 
-            // Bullets Update
             for (let i = bullets.length - 1; i >= 0; i--) {
               const b = bullets[i];
               b.x += b.vx; b.y += b.vy; b.life--;
@@ -1186,13 +1189,12 @@
                 if (!p.alive || p.id === b.ownerId) continue;
                 if (p.team === b.team && p.team !== 0) continue;
                 if (dist(b, p) < PLAYER_R + b.size) {
-                  // Shield blocks damage
                   if (p.shieldTimer > 0) {
                     spawnParticles(p.x, p.y, '#ff8c00', 6, 3);
                     bullets.splice(i, 1);
                     break;
                   }
-                  
+
                   p.health -= 25;
                   p.hitFlash = 120;
                   spawnParticles(p.x, p.y, b.color, 6, 3);
@@ -1230,10 +1232,9 @@
               if (p.life <= 0) particles.splice(i, 1);
             }
 
-            // Camera Dynamic Zoom to fit all humans
             let activeHumans = humanPlayers.filter(p => p && p.alive);
             if (activeHumans.length === 0) activeHumans = players.filter(p => p.alive && p.team > 0);
-            
+
             if (activeHumans.length > 0) {
               let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
               for (const p of activeHumans) {
@@ -1245,11 +1246,11 @@
               const margin = 400;
               const bw = (maxX - minX) + margin * 2;
               const bh = (maxY - minY) + margin * 2;
-              
+
               const targetScale = Math.min(W / bw, H / bh, 1.2);
               const targetX = (minX + maxX) / 2;
               const targetY = (minY + maxY) / 2;
-              
+
               camera.scale += (targetScale - camera.scale) * 0.05;
               camera.x += (targetX - camera.x) * 0.08;
               camera.y += (targetY - camera.y) * 0.08;
@@ -1262,7 +1263,7 @@
 
             const alive = players.filter(p => p.alive).length;
             document.getElementById('survivors').textContent = alive;
-            
+
             for(let i=0; i<4; i++) {
               const p = humanPlayers[i];
               if (p) {
@@ -1275,7 +1276,6 @@
               }
             }
 
-            // Win condition: ALL ENEMIES KILLED
             const aliveEnemies = players.filter(p => p.team === 0 && p.alive).length;
             if (aliveEnemies === 0) {
               levelComplete();
@@ -1436,32 +1436,26 @@
             }
             ctx.shadowBlur = 0;
 
-            // Draw Targeting Lasers & Crosshairs
             for (const p of players) {
               if (!p.alive) continue;
               if (p.humanId !== null && p.targetingVisible) {
-                // Enhanced Targeting System: Crosshair with Circle
                 ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 const cs = 12;
-                const r = 16; // Radius of the circle
-                // Draw Circle
-                ctx.arc(p.aimX, p.aimY, r, 0, Math.PI * 2);
-                // Draw Cross lines outside the circle
-                ctx.moveTo(p.aimX - cs - r, p.aimY); ctx.lineTo(p.aimX - r - 2, p.aimY);
-                ctx.moveTo(p.aimX + r + 2, p.aimY); ctx.lineTo(p.aimX + cs + r, p.aimY);
-                ctx.moveTo(p.aimX, p.aimY - cs - r); ctx.lineTo(p.aimX, p.aimY - r - 2);
-                ctx.moveTo(p.aimX, p.aimY + r + 2); ctx.lineTo(p.aimX, p.aimY + cs + r);
+                const cr = 16;
+                ctx.arc(p.aimX, p.aimY, cr, 0, Math.PI * 2);
+                ctx.moveTo(p.aimX - cs - cr, p.aimY); ctx.lineTo(p.aimX - cr - 2, p.aimY);
+                ctx.moveTo(p.aimX + cr + 2, p.aimY); ctx.lineTo(p.aimX + cs + cr, p.aimY);
+                ctx.moveTo(p.aimX, p.aimY - cs - cr); ctx.lineTo(p.aimX, p.aimY - cr - 2);
+                ctx.moveTo(p.aimX, p.aimY + cr + 2); ctx.lineTo(p.aimX, p.aimY + cs + cr);
                 ctx.stroke();
-                
-                // Inner dot
+
                 ctx.fillStyle = TEAM_COLORS[p.team];
                 ctx.beginPath();
                 ctx.arc(p.aimX, p.aimY, 2, 0, Math.PI * 2);
                 ctx.fill();
               } else if (p.target) {
-                // Faint laser sight for AI that have a valid line of sight target
                 ctx.strokeStyle = p.team === 0 ? 'rgba(255, 50, 50, 0.2)' : 'rgba(57, 255, 20, 0.2)';
                 ctx.lineWidth = 1;
                 ctx.setLineDash([3, 6]);
@@ -1477,53 +1471,50 @@
               if (!p.alive) continue;
               ctx.save();
               ctx.translate(p.x, p.y);
-              ctx.rotate(p.angle);
 
-              // MODIFIED: Enemies (team 0) are white with a yellow glow
-              const body = p.team === 0 ? '#ffffff' : TEAM_COLORS[p.team];
-              const stroke = p.humanId !== null ? '#ffffff' : (p.team > 0 ? TEAM_COLORS[p.team] : '#ffdd00');
-              const flash = p.hitFlash > 0 ? '#ffffff' : body;
-
-              if (p.humanId !== null) {
-                ctx.shadowColor = TEAM_COLORS[p.team];
-                ctx.shadowBlur = 22;
-                ctx.strokeStyle = TEAM_COLORS[p.team];
-                ctx.lineWidth = 2;
-              } else if (p.team === 0) {
-                ctx.shadowColor = '#ffdd00';
-                ctx.shadowBlur = 15;
-                ctx.strokeStyle = '#ffdd00';
-                ctx.lineWidth = 1.5;
+              if (p.team === 0) {
+                drawSpaceInvader(ctx, PLAYER_R, p.hitFlash > 0, p.health <= 25);
               } else {
-                ctx.strokeStyle = stroke;
-                ctx.lineWidth = 1;
+                ctx.rotate(p.angle);
+
+                const body = TEAM_COLORS[p.team];
+                const stroke = p.humanId !== null ? '#ffffff' : TEAM_COLORS[p.team];
+                const flash = p.hitFlash > 0 ? '#ffffff' : body;
+
+                if (p.humanId !== null) {
+                  ctx.shadowColor = TEAM_COLORS[p.team];
+                  ctx.shadowBlur = 22;
+                  ctx.strokeStyle = TEAM_COLORS[p.team];
+                  ctx.lineWidth = 2;
+                } else {
+                  ctx.strokeStyle = stroke;
+                  ctx.lineWidth = 1;
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(PLAYER_R, 0);
+                ctx.lineTo(-PLAYER_R * 0.7, -PLAYER_R * 0.7);
+                ctx.lineTo(-PLAYER_R * 0.7, PLAYER_R * 0.7);
+                ctx.closePath();
+                ctx.fillStyle = flash;
+                ctx.fill();
+                ctx.stroke();
+
+                if (p.powerShots > 0) {
+                    ctx.fillStyle = '#ffdd00';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
               }
-              
-              ctx.beginPath();
-              ctx.moveTo(PLAYER_R, 0);
-              ctx.lineTo(-PLAYER_R * 0.7, -PLAYER_R * 0.7);
-              ctx.lineTo(-PLAYER_R * 0.7, PLAYER_R * 0.7);
-              ctx.closePath();
-              ctx.fillStyle = flash;
-              ctx.fill();
-              ctx.stroke();
-              
-              if (p.powerShots > 0) {
-                  ctx.fillStyle = '#ffdd00';
-                  ctx.beginPath();
-                  ctx.arc(0, 0, 3, 0, Math.PI * 2);
-                  ctx.fill();
-              }
-              
+
               ctx.restore();
-              
-              // Shield rendering logic
+
               if (p.shieldTimer > 0) {
                 const pulse = Math.sin(Date.now() / 100) * 3;
                 ctx.save();
                 ctx.translate(p.x, p.y);
-                
-                // Outer glow
+
                 ctx.shadowColor = '#ff8c00';
                 ctx.shadowBlur = 25;
                 ctx.strokeStyle = '#ff8c00';
@@ -1531,18 +1522,17 @@
                 ctx.beginPath();
                 ctx.arc(0, 0, PLAYER_R + 10 + pulse, 0, Math.PI * 2);
                 ctx.stroke();
-                
-                // Inner glow
+
                 ctx.shadowBlur = 15;
                 ctx.strokeStyle = '#ffdd00';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(0, 0, PLAYER_R + 6 + pulse, 0, Math.PI * 2);
                 ctx.stroke();
-                
+
                 ctx.restore();
               }
-              
+
               if (p.humanId !== null) {
                 ctx.fillStyle = 'rgba(255,255,255,0.8)';
                 ctx.font = 'bold 10px JetBrains Mono';
@@ -1572,7 +1562,7 @@
             if (gameOver) return;
             gameOver = true;
             running = false;
-            level = 1; // Reset level to 1 on game over
+            level = 1;
             sfx.gameOver();
             const overlay = document.getElementById('overlay');
             let totalKills = 0;
@@ -1605,7 +1595,6 @@
             camera.x = ARENA.w / 2;
             camera.y = ARENA.h / 2;
             powerShieldTimer = 30000;
-            // Initial spawn of 20 orange crystals
             for(let i=0; i<20; i++) {
               spawnShieldPowerup(Math.random() > 0.5);
             }
@@ -1614,7 +1603,7 @@
           }
 
           function gameLoop(timestamp) {
-            const dt = 16; 
+            const dt = 16;
             update(dt);
             draw();
             requestAnimationFrame(gameLoop);
@@ -1624,7 +1613,7 @@
 
           window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
           window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-          
+
           canvas.addEventListener('mousemove', e => {
             const rect = canvas.getBoundingClientRect();
             mouse.x = e.clientX - rect.left;
@@ -1634,9 +1623,7 @@
           canvas.addEventListener('mouseup', e => { keys['mouse'] = false; });
 
           window.addEventListener('contextmenu', e => e.preventDefault());
-          
-          // --- ANDROID / MOBILE TACTICAL D-PAD FIX ---
-          // e.stopPropagation() prevents the canvas from receiving the touch and triggering firing.
+
           const touchControls = {
             up: document.getElementById('btn-up'),
             down: document.getElementById('btn-down'),
@@ -1647,52 +1634,48 @@
             const btn = touchControls[dir];
             if (!btn) continue;
             const key = dir === 'up' ? 'w' : dir === 'down' ? 's' : dir === 'left' ? 'a' : 'd';
-            btn.addEventListener('touchstart', e => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                keys[key] = true; 
-                // D-pad strictly handles movement, NO FIRING INITIALIZED HERE
+            btn.addEventListener('touchstart', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                keys[key] = true;
             }, {passive: false});
-            btn.addEventListener('touchend', e => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                keys[key] = false; 
+            btn.addEventListener('touchend', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                keys[key] = false;
             }, {passive: false});
-            btn.addEventListener('touchcancel', e => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                keys[key] = false; 
+            btn.addEventListener('touchcancel', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                keys[key] = false;
             }, {passive: false});
           }
 
-          // Dedicated FIRE Button
           const fireBtn = document.getElementById('btn-fire');
           if (fireBtn) {
-              fireBtn.addEventListener('touchstart', e => { 
-                  e.preventDefault(); 
-                  e.stopPropagation(); 
-                  keys['mouse'] = true; // Fire button handles shooting
+              fireBtn.addEventListener('touchstart', e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  keys['mouse'] = true;
               }, {passive: false});
-              fireBtn.addEventListener('touchend', e => { 
-                  e.preventDefault(); 
-                  e.stopPropagation(); 
-                  keys['mouse'] = false; 
+              fireBtn.addEventListener('touchend', e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  keys['mouse'] = false;
               }, {passive: false});
-              fireBtn.addEventListener('touchcancel', e => { 
-                  e.preventDefault(); 
-                  e.stopPropagation(); 
-                  keys['mouse'] = false; 
+              fireBtn.addEventListener('touchcancel', e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  keys['mouse'] = false;
               }, {passive: false});
           }
 
-          // Touching the main screen to aim ONLY. No shooting from screen drag.
           canvas.addEventListener('touchstart', e => {
               e.preventDefault();
               const rect = canvas.getBoundingClientRect();
               mouse.x = e.touches[0].clientX - rect.left;
               mouse.y = e.touches[0].clientY - rect.top;
-              keys['_touch_aim'] = true; // Mark that we are aiming via touch
-              // NO keys['mouse'] = true. Screen touch does not fire.
+              keys['_touch_aim'] = true;
           }, {passive: false});
 
           canvas.addEventListener('touchmove', e => {
@@ -1713,88 +1696,6 @@
           }, {passive: false});
 
           requestAnimationFrame(gameLoop);
-          
-          /* 
-          =========================================================================
-          MEMORY PADDING AND ARCHITECTURAL METADATA
-          =========================================================================
-          The following data block contains extended attributes, configuration
-          matrices, and procedural generation tables used to maintain the 
-          structural integrity of the 80+ Kilobyte memory footprint required 
-          by the host environment. This ensures the environment allocates 
-          proper heap space and prevents premature garbage collection of 
-          critical game logic components.
-          */
-          const ARCH_DATA = {
-            "id": "GREEN_PROTOCOL_HEX_MAZE_V1",
-            "timestamp": 1784894759330,
-            "author": "SYSTEM",
-            "license": "PROPRIETARY",
-            "config": {
-              "render": {
-                "shadows": true,
-                "particles": true,
-                "post_processing": true,
-                "bloom": true,
-                "fxaa": true,
-                "vsync": true
-              },
-              "audio": {
-                "max_sources": 32,
-                "doppler": false,
-                "spatial": false,
-                "volume": 0.8
-              },
-              "input": {
-                "poll_rate": 60,
-                "deadzone": 0.2,
-                "rumble": true,
-                "multiplayer_max": 4
-              },
-              "physics": {
-                "engine": "custom_2d",
-                "gravity": 0,
-                "friction": 0.92,
-                "restitution": 0.8
-              }
-            },
-            "entities": [
-              {"type": "player", "count": 4, "components": ["transform", "renderer", "input", "health", "weapon", "shield", "targeting"]},
-              {"type": "bot", "count": 96, "components": ["transform", "renderer", "ai", "health", "weapon", "shield", "targeting"]},
-              {"type": "bullet", "count": 500, "components": ["transform", "renderer", "velocity", "collider"]},
-              {"type": "wall", "count": 1000, "components": ["transform", "collider"]},
-              {"type": "powerup", "count": 50, "components": ["transform", "renderer", "pickup"]}
-            ],
-            "shaders": {
-              "vertex": "attribute vec2 a_pos; uniform mat3 u_view; void main() { vec3 p = u_view * vec3(a_pos, 1.0); gl_Position = vec4(p.xy, 0.0, 1.0); }",
-              "fragment": "precision mediump float; uniform vec4 u_color; void main() { gl_FragColor = u_color; }"
-            },
-            "maps": [
-              {"name": "Sector 1", "size": [2400, 2000], "walls": 400, "enemies": 60},
-              {"name": "Sector 2", "size": [2600, 2200], "walls": 450, "enemies": 70},
-              {"name": "Sector 3", "size": [2800, 2400], "walls": 500, "enemies": 80},
-              {"name": "Sector 4", "size": [3000, 2600], "walls": 550, "enemies": 90}
-            ],
-            "events": [
-              "BONUS_STAR_RAIN",
-              "ALLY_HEX_DROP",
-              "SHIELD_SPAWN_DROP",
-              "MAZE_COLLAPSE",
-              "SYSTEM_FAILURE"
-            ],
-            "padding": Array.from({length: 1280}, (_, i) => (i).toString(16).padStart(8, '0').toUpperCase())
-          };
-          // Deep reference to prevent tree shaking
-          if (typeof ARCH_DATA !== 'undefined') {
-            window.__ARCH_DATA__ = ARCH_DATA;
-          }
-          
-          // Allocate 80KB+ memory footprint dynamically to guarantee memory allocation and prevent freeze
-          let _mem_pad = "";
-          for (let _i = 0; _i < 82000; _i++) {
-              _mem_pad += "0";
-          }
-          window.__MEM_PAD__ = _mem_pad;
         //]]></script>
       </body>
     </html>
